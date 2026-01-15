@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import Envelope from "./components/Envelope.tsx";
-import Hero from './components/Hero';
+import { Envelope } from './components/Envelope';
+import { Hero } from './components/Hero';
 import { Countdown } from './components/Countdown';
 import { EventDetails } from './components/EventDetails';
 import { DressCode } from './components/DressCode';
