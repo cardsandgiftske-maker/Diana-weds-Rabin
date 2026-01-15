@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { Envelope } from './components/Envelope';
 import { Hero } from './components/Hero';
 import { Countdown } from './components/Countdown';
@@ -14,10 +15,71 @@ const App: React.FC = () => {
   const [isOpened, setIsOpened] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Handle opening the invite without music
+  useEffect(() => {
+    // We use a high-stability source from Wikimedia Commons (Erik Satie - Gymnopédie No. 1)
+    // This is public domain and generally allows hotlinking without CORS/Referer issues.
+    const audio = new Audio();
+    audio.src = 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Erik_Satie_-_Gymnop%C3%A9die_No._1.mp3';
+    audio.loop = true;
+    audio.preload = 'auto';
+    
+    const handleError = () => {
+      const error = audio.error;
+      if (error) {
+        console.error(`Audio Error: Code ${error.code} - ${error.message}`);
+        
+        // If Wikimedia fails, try a secondary very stable fallback
+        if (error.code === 4 && audio.src.includes('wikimedia')) {
+          console.warn("Primary audio source failed, attempting fallback...");
+          audio.src = 'https://cdn.pixabay.com/audio/2023/03/20/audio_a57f8f874b.mp3';
+          audio.load();
+        }
+      }
+    };
+
+    audio.addEventListener('error', handleError);
+    audioRef.current = audio;
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.removeEventListener('error', handleError);
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   const handleOpenInvite = () => {
     setIsOpened(true);
+    // Standard practice: Play audio only after explicit user interaction
+    if (audioRef.current) {
+      audioRef.current.play()
+        .then(() => console.log("Audio playback active"))
+        .catch(err => {
+          console.warn("Playback prevented or failed:", err);
+          // Retry on interaction if it was a permission issue
+          if (err.name === 'NotAllowedError') {
+             console.log("Retrying audio on next interaction...");
+          }
+        });
+    }
+  };
+
+  const toggleMute = () => {
+    if (audioRef.current) {
+      const newMutedState = !audioRef.current.muted;
+      audioRef.current.muted = newMutedState;
+      setIsMuted(newMutedState);
+      
+      if (!newMutedState && audioRef.current.paused) {
+        audioRef.current.play().catch(() => {});
+      }
+    }
   };
 
   useEffect(() => {
@@ -68,6 +130,15 @@ const App: React.FC = () => {
           <RSVPForm />
           <Footer onAdminClick={() => setIsAdminOpen(true)} />
           
+          {/* Floating Music Control */}
+          <button 
+            onClick={toggleMute}
+            aria-label={isMuted ? "Unmute music" : "Mute music"}
+            className="fixed bottom-6 left-6 w-12 h-12 bg-white/80 backdrop-blur-md rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:bg-white transition-all z-50 border border-gray-100"
+          >
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} className="animate-pulse" />}
+          </button>
+
           <button 
             onClick={() => {
               const element = document.getElementById('rsvp-section');
