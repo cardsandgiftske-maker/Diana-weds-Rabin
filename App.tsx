@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { Envelope } from './components/Envelope';
 import { Hero } from './components/Hero';
 import { Countdown } from './components/Countdown';
@@ -20,8 +21,6 @@ const App: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // We use a high-stability source from Wikimedia Commons (Erik Satie - Gymnopédie No. 1)
-    // This is public domain and generally allows hotlinking without CORS/Referer issues.
     const audio = new Audio();
     audio.src = 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Erik_Satie_-_Gymnop%C3%A9die_No._1.mp3';
     audio.loop = true;
@@ -31,8 +30,6 @@ const App: React.FC = () => {
       const error = audio.error;
       if (error) {
         console.error(`Audio Error: Code ${error.code} - ${error.message}`);
-        
-        // If Wikimedia fails, try a secondary very stable fallback
         if (error.code === 4 && audio.src.includes('wikimedia')) {
           console.warn("Primary audio source failed, attempting fallback...");
           audio.src = 'https://cdn.pixabay.com/audio/2023/03/20/audio_a57f8f874b.mp3';
@@ -56,17 +53,47 @@ const App: React.FC = () => {
 
   const handleOpenInvite = () => {
     setIsOpened(true);
-    // Standard practice: Play audio only after explicit user interaction
+    
+    // Confetti Pop!
+    const end = Date.now() + 2 * 1000;
+    const colors = ['#C9E4DE', '#F2C6DE', '#FAEDCB', '#C6DEF1', '#F7D9C4'];
+
+    (function frame() {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: colors
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: colors
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    }());
+
+    // Also a central burst
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: colors,
+      scalar: 1.2,
+      gravity: 0.8
+    });
+
+    // Play audio
     if (audioRef.current) {
       audioRef.current.play()
         .then(() => console.log("Audio playback active"))
-        .catch(err => {
-          console.warn("Playback prevented or failed:", err);
-          // Retry on interaction if it was a permission issue
-          if (err.name === 'NotAllowedError') {
-             console.log("Retrying audio on next interaction...");
-          }
-        });
+        .catch(err => console.warn("Playback blocked or failed:", err));
     }
   };
 
@@ -130,7 +157,6 @@ const App: React.FC = () => {
           <RSVPForm />
           <Footer onAdminClick={() => setIsAdminOpen(true)} />
           
-          {/* Floating Music Control */}
           <button 
             onClick={toggleMute}
             aria-label={isMuted ? "Unmute music" : "Mute music"}
